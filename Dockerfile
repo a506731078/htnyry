@@ -1,5 +1,5 @@
 # 第一阶段：使用 Maven 构建应用
-FROM maven:3.9.6-jdk-8-slim AS builder
+FROM maven:3.8.8-openjdk-8-slim AS builder
 
 # 设置工作目录
 WORKDIR /app
@@ -26,7 +26,7 @@ COPY . .
 RUN mvn clean package -DskipTests
 
 # 第二阶段：运行时镜像
-FROM openjdk:8-jdk-alpine
+FROM eclipse-temurin:8-jdk-alpine
 
 # 设置工作目录
 WORKDIR /app
