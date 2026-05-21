@@ -13,7 +13,6 @@ on:
 
 env:
   JAVA_VERSION: '8'
-  DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
 
 jobs:
   # Job 1: Build JAR package
@@ -57,10 +56,11 @@ jobs:
         path: release/lis-admin.jar
         retention-days: 5
 
-  # Job 2: Build Docker image
+  # Job 2: Build Docker image (optional - only if credentials are configured)
   build-docker:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    if: secrets.DOCKER_HUB_USERNAME != '' && secrets.DOCKER_HUB_ACCESS_TOKEN != ''
 
     steps:
     - uses: actions/checkout@v4.1.7
@@ -87,7 +87,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.DOCKER_HUB_USERNAME }}/lis
+        images: ${{ secrets.DOCKER_HUB_USERNAME }}/lis
         tags: |
           type=raw,value=${{ steps.get_tag.outputs.VERSION }}
 
@@ -115,9 +115,9 @@ jobs:
           docker-full-tag.txt
         retention-days: 5
 
-  # Job 3: Create Release (depends on both builds)
+  # Job 3: Create Release (depends on JAR build, Docker is optional)
   release:
-    needs: [build-jar, build-docker]
+    needs: [build-jar]
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -126,12 +126,6 @@ jobs:
       uses: actions/download-artifact@v4.3.0
       with:
         name: lis-admin-jar
-        path: .
-
-    - name: Download Docker metadata
-      uses: actions/download-artifact@v4.3.0
-      with:
-        name: docker-metadata
         path: .
 
     - name: Get tag version
@@ -143,11 +137,45 @@ jobs:
           echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
         fi
 
-    - name: Read Docker tag
+    - name: Check if Docker credentials are available
+      id: check_docker
+      run: |
+        if [ "${{ secrets.DOCKER_HUB_USERNAME }}" != "" ] && [ "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" != "" ]; then
+          echo "HAS_DOCKER=true" >> $GITHUB_OUTPUT
+        else
+          echo "HAS_DOCKER=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Download Docker metadata (if available)
+      if: ${{ steps.check_docker.outputs.HAS_DOCKER == 'true' }}
+      uses: actions/download-artifact@v4.3.0
+      with:
+        name: docker-metadata
+        path: .
+
+    - name: Read Docker tag (if available)
       id: docker_tag
+      if: ${{ steps.check_docker.outputs.HAS_DOCKER == 'true' }}
       run: |
         DOCKER_FULL_TAG=$(cat docker-full-tag.txt)
         echo "FULL_TAG=$DOCKER_FULL_TAG" >> $GITHUB_OUTPUT
+
+    - name: Generate release body
+      id: release_body
+      run: |
+        BODY="## 📦 LIS 物流系统 ${{ steps.get_tag.outputs.VERSION }}\n\n"
+        
+        if [ "${{ steps.check_docker.outputs.HAS_DOCKER }}" == "true" ]; then
+          BODY="$BODY### 🔗 Docker 镜像\n\`\`\`\ndocker pull ${{ steps.docker_tag.outputs.FULL_TAG }}\n\`\`\`\n\n### 🚀 快速启动（Docker Compose）\n\`\`\`yaml\nversion: '3.8'\nservices:\n  mysql:\n    image: mysql:8.0\n    environment:\n      MYSQL_ROOT_PASSWORD: root123\n      MYSQL_DATABASE: hhhh\n      MYSQL_USER: hhhh\n      MYSQL_PASSWORD: hhhh123\n    ports:\n      - \"3306:3306\"\n\n  lis:\n    image: ${{ steps.docker_tag.outputs.FULL_TAG }}\n    depends_on:\n      mysql:\n        condition: service_started\n    ports:\n      - \"8808:8808\"\n    environment:\n      CONFIG_DB_HOST: mysql\n      CONFIG_DB_NAME: hhhh\n      CONFIG_DB_USER: hhhh\n      CONFIG_DB_PASSWORD: hhhh123\n\`\`\`\n\n"
+        else
+          BODY="$BODY### ⚠️ Docker 镜像未构建\nDocker Hub 凭据未配置，如需构建 Docker 镜像，请设置 DOCKER_HUB_USERNAME 和 DOCKER_HUB_ACCESS_TOKEN\n\n"
+        fi
+        
+        BODY="$BODY### 📋 变更日志\n请查看 [GitHub Releases](https://github.com/${{ github.repository }}/releases)\n\n### 🔧 传统部署\n1. 下载 \`lis-admin.jar\`\n2. 配置 \`config.json\`\n3. 运行 \`java -jar -Xmx1024M -Xms256M lis-admin.jar\`\n\n默认管理员账号：\`admin\` / \`admin123\`"
+        
+        echo "BODY<<EOF" >> $GITHUB_OUTPUT
+        echo "$BODY" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
 
     - name: Create Release
       uses: softprops/action-gh-release@v2
@@ -159,51 +187,6 @@ jobs:
         generate_release_notes: true
         files: |
           lis-admin.jar
-        body: |
-          ## 📦 LIS 物流系统 ${{ steps.get_tag.outputs.VERSION }}
-
-          ### 🔗 Docker 镜像
-          ```
-          docker pull ${{ steps.docker_tag.outputs.FULL_TAG }}
-          ```
-
-          ### 🚀 快速启动（Docker Compose）
-          ```yaml
-          version: '3.8'
-          services:
-            mysql:
-              image: mysql:8.0
-              environment:
-                MYSQL_ROOT_PASSWORD: root123
-                MYSQL_DATABASE: hhhh
-                MYSQL_USER: hhhh
-                MYSQL_PASSWORD: hhhh123
-              ports:
-                - "3306:3306"
-
-            lis:
-              image: ${{ steps.docker_tag.outputs.FULL_TAG }}
-              depends_on:
-                mysql:
-                  condition: service_started
-              ports:
-                - "8808:8808"
-              environment:
-                CONFIG_DB_HOST: mysql
-                CONFIG_DB_NAME: hhhh
-                CONFIG_DB_USER: hhhh
-                CONFIG_DB_PASSWORD: hhhh123
-          ```
-
-          ### 📋 变更日志
-          请查看 [GitHub Releases](https://github.com/${{ github.repository }}/releases)
-
-          ### 🔧 传统部署
-          1. 下载 `lis-admin.jar`
-          2. 配置 `config.json`
-          3. 运行 `java -jar -Xmx1024M -Xms256M lis-admin.jar`
-
-          --->
-          默认管理员账号：`admin` / `admin123`
+        body: ${{ steps.release_body.outputs.BODY }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
