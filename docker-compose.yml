@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # MySQL 数据库服务
+  mysql:
+    image: mysql:8.0
+    container_name: lis-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-hhhh}
+      MYSQL_USER: ${MYSQL_USER:-hhhh}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-hhhh123}
+      TZ: Asia/Shanghai
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    networks:
+      - lis-network
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+
+  # LIS 应用服务
+  lis:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: lis:latest
+    container_name: lis-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_started
+    environment:
+      JAVA_OPTS: ${JAVA_OPTS:--Xmx1024M -Xms256M}
+      CONFIG_PORT: ${CONFIG_PORT:-8808}
+      CONFIG_ADDRESS: "0.0.0.0"
+      # 数据库配置（通过环境变量传递给应用）
+      CONFIG_DB_NAME: ${MYSQL_DATABASE:-hhhh}
+      CONFIG_DB_USER: ${MYSQL_USER:-hhhh}
+      CONFIG_DB_PASSWORD: ${MYSQL_PASSWORD:-hhhh123}
+      CONFIG_DB_HOST: mysql
+      CONFIG_DB_PORT: 3306
+    ports:
+      - "${CONFIG_PORT:-8808}:8808"
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - upload-data:/home/lis/uploadPath
+      - logs-data:/home/lis/logs
+    networks:
+      - lis-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8808/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  mysql-data:
+    name: lis-mysql-data
+  upload-data:
+    name: lis-upload-data
+  logs-data:
+    name: lis-logs-data
+
+networks:
+  lis-network:
+    name: lis-network
+    driver: bridge

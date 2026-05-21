@@ -2,6 +2,9 @@
 
 基于 RuoYi + Spring Boot 的物流管理系统
 
+> ✨ 新增 Docker 部署支持，一键启动项目！
+
+
 ## 项目结构
 
 ```
@@ -38,6 +41,179 @@ java/
 - MySQL 5.7+ / 8.0
 
 详细配置请查看: [环境要求.md](环境要求.md)
+
+## Docker 部署（推荐）
+
+使用 Docker 可以一键部署完整的 LIS 系统（包含 MySQL 数据库）。
+
+### 环境要求
+
+- Docker Engine 20.10+
+- Docker Compose 2.0+
+
+### 快速开始（Docker）
+
+#### 1. 克隆项目
+
+```bash
+git clone <your-repository-url>
+cd java
+```
+
+#### 2. 配置环境变量（可选）
+
+复制 `.env.example` 为 `.env` 并根据需要修改配置：
+
+```bash
+cp .env.example .env
+```
+
+编辑 `.env` 文件：
+
+```env
+# MySQL 配置
+MYSQL_ROOT_PASSWORD=root123
+MYSQL_DATABASE=hhhh
+MYSQL_USER=hhhh
+MYSQL_PASSWORD=hhhh123
+MYSQL_PORT=3306
+
+# 应用配置
+CONFIG_PORT=8808
+JAVA_OPTS=-Xmx1024M -Xms256M
+```
+
+#### 3. 启动服务
+
+```bash
+# 构建并启动所有服务（首次启动）
+docker-compose up -d
+
+# 或者，如果你想只启动（不重新构建）
+docker-compose up -d --no-build
+```
+
+#### 4. 查看服务状态
+
+```bash
+# 查看所有服务状态
+docker-compose ps
+
+# 查看应用日志
+docker-compose logs -f lis
+
+# 查看 MySQL 日志
+docker-compose logs -f mysql
+```
+
+#### 5. 访问系统
+
+系统启动后，在浏览器访问：
+
+```
+http://localhost:8808
+```
+
+默认管理员账号：`admin` / `admin123`
+
+### Docker 常用命令
+
+```bash
+# 启动服务
+docker-compose up -d
+
+# 停止服务
+docker-compose stop
+
+# 启动已停止的服务
+docker-compose start
+
+# 重启服务
+docker-compose restart
+
+# 查看日志
+docker-compose logs -f
+
+# 进入应用容器
+docker-compose exec lis sh
+
+# 进入 MySQL 容器
+docker-compose exec mysql mysql -u hhhh -phhhh123 hhhh
+
+# 删除所有服务和数据（谨慎使用）
+docker-compose down -v
+```
+
+### 数据持久化
+
+项目使用 Docker Volume 进行数据持久化：
+
+- `lis-mysql-data`: MySQL 数据库数据
+- `lis-upload-data`: 上传文件数据
+- `lis-logs-data`: 应用日志
+
+即使容器被删除，数据也不会丢失。
+
+### 单独构建应用镜像
+
+如果你想单独构建应用镜像而不使用 docker-compose：
+
+```bash
+# 构建镜像
+docker build -t lis:latest .
+
+# 运行容器（需要配合 MySQL 使用）
+docker run -d \
+  --name lis-app \
+  -p 8808:8808 \
+  -v $(pwd)/config.json:/app/config.json:ro \
+  -e CONFIG_DB_NAME=hhhh \
+  -e CONFIG_DB_USER=hhhh \
+  -e CONFIG_DB_PASSWORD=hhhh123 \
+  -e CONFIG_DB_HOST=your-mysql-host \
+  lis:latest
+```
+
+### Docker 架构说明
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                     Docker Network                      │
+│  ┌──────────────────┐          ┌──────────────────┐    │
+│  │   MySQL (mysql)  │◄────────►│  LIS App (lis)  │    │
+│  │  Port: 3306      │          │  Port: 8808     │    │
+│  └──────────────────┘          └──────────────────┘    │
+│         │                               │               │
+│         ▼                               ▼               │
+│  ┌──────────────────┐          ┌──────────────────┐    │
+│  │ mysql-data       │          │ upload-data      │    │
+│  │ (Volume)         │          │ logs-data        │    │
+│  └──────────────────┘          └──────────────────┘    │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 故障排查
+
+#### 问题：应用无法连接 MySQL
+
+**解决方案：**
+1. 检查 MySQL 容器是否正常运行：`docker-compose ps`
+2. 查看应用日志：`docker-compose logs lis`
+3. 确保环境变量配置正确
+
+#### 问题：端口被占用
+
+**解决方案：**
+修改 `.env` 文件中的 `CONFIG_PORT` 或 `MYSQL_PORT`，使用其他端口。
+
+#### 问题：数据库初始化失败
+
+**解决方案：**
+```bash
+# 删除数据卷并重新初始化
+docker-compose down -v
+docker-compose up -d
+```
 
 ## 快速开始
 
