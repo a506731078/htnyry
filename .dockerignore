@@ -40,4 +40,5 @@ sql/*.db
 # 打包脚本
 bin/
 *.bat
-*.sh
+# 保留 start.sh，其他 .sh 可以忽略
+!start.sh
