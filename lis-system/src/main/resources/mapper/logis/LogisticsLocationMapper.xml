@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lis.logis.mapper.LogisticsLocationMapper">
+
+    <resultMap type="LogisticsLocation" id="LogisticsLocationResult">
+        <result property="id"    column="id"    />
+        <result property="logisticsId"    column="logistics_id"    />
+        <result property="orderStatus"    column="order_status"    />
+        <result property="currentLocation"    column="current_location"    />
+        <result property="currentsTime"    column="currents_time"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectLogisticsLocationVo">
+        select id, logistics_id, order_status, current_location, currents_time, create_time, update_time, remark from logistics_location
+    </sql>
+
+    <select id="selectLogisticsLocationList" parameterType="LogisticsLocation" resultMap="LogisticsLocationResult">
+        <include refid="selectLogisticsLocationVo"/>
+        <where>
+            <if test="logisticsId != null "> and logistics_id = #{logisticsId}</if>
+            <if test="orderStatus != null  and orderStatus != ''"> and order_status = #{orderStatus}</if>
+            <if test="currentLocation != null  and currentLocation != ''"> and current_location = #{currentLocation}</if>
+        </where>
+        order by currents_time desc
+    </select>
+
+    <select id="selectLogisticsLocationById" parameterType="Long" resultMap="LogisticsLocationResult">
+        <include refid="selectLogisticsLocationVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertLogisticsLocation" parameterType="LogisticsLocation" useGeneratedKeys="true" keyProperty="id">
+        insert into logistics_location
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="logisticsId != null">logistics_id,</if>
+            <if test="orderStatus != null and orderStatus != ''">order_status,</if>
+            <if test="currentLocation != null and currentLocation != ''">current_location,</if>
+            <if test="currentsTime != null">currents_time,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="logisticsId != null">#{logisticsId},</if>
+            <if test="orderStatus != null and orderStatus != ''">#{orderStatus},</if>
+            <if test="currentLocation != null and currentLocation != ''">#{currentLocation},</if>
+            <if test="currentsTime != null ">#{currentsTime},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+        </trim>
+    </insert>
+
+    <update id="updateLogisticsLocation" parameterType="LogisticsLocation">
+        update logistics_location
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="logisticsId != null">logistics_id = #{logisticsId},</if>
+            <if test="orderStatus != null and orderStatus != ''">order_status = #{orderStatus},</if>
+            <if test="currentLocation != null and currentLocation != ''">current_location = #{currentLocation},</if>
+            <if test="currentsTime != null">currents_time = #{currentsTime},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteLogisticsLocationById" parameterType="Long">
+        delete from logistics_location where id = #{id}
+    </delete>
+
+    <delete id="deleteLogisticsLocationByIds" parameterType="String">
+        delete from logistics_location where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="selectLogisticsLocationListId" parameterType="String" resultMap="LogisticsLocationResult">
+        SELECT ll.*
+        FROM logistics l
+        JOIN logistics_location ll ON l.id = ll.logistics_id
+        WHERE l.order_number in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+</mapper>

@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lis.logis.mapper.LogisticsMapper">
+
+    <resultMap type="Logistics" id="LogisticsResult">
+        <result property="id"    column="id"    />
+        <result property="orderNumber"    column="order_number"    />
+        <result property="phoneNumber"    column="phone_number"    />
+        <result property="onsignee"    column="onsignee"    />
+        <result property="shippingAddress"    column="shipping_address"    />
+        <result property="shippingTime"    column="shipping_time"    />
+        <result property="receiveTime"    column="receive_time"    />
+        <result property="orderGoods"    column="order_goods"    />
+        <result property="orderAmount"    column="order_amount"    />
+        <result property="deptId"    column="dept_id"    />
+        <result property="userId"    column="user_id"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+        <result property="other"    column="other"    />
+        <result property="other2"    column="other2"    />
+        <result property="other3"    column="other3"    />
+    </resultMap>
+
+    <resultMap id="LogisticsLogisticsLocationResult" type="Logistics" extends="LogisticsResult">
+        <collection property="logisticsLocationList" notNullColumn="sub_id" javaType="java.util.List" resultMap="LogisticsLocationResult" />
+    </resultMap>
+
+    <resultMap type="LogisticsLocation" id="LogisticsLocationResult">
+        <result property="id"    column="sub_id"    />
+        <result property="logisticsId"    column="sub_logistics_id"    />
+        <result property="currentLocation"    column="sub_current_location"    />
+        <result property="currentsTime"    column="sub_currents_time"    />
+        <result property="orderStatus"    column="sub_order_status"    />
+        <result property="createTime"    column="sub_create_time"    />
+        <result property="updateTime"    column="sub_update_time"    />
+        <result property="remark"    column="sub_remark"    />
+    </resultMap>
+
+    <sql id="selectLogisticsVo">
+        select id, order_number, phone_number, onsignee, shipping_address, shipping_time, receive_time, order_goods, order_amount, create_time, update_time, remark, dept_id, user_id from logistics l
+    </sql>
+
+    <select id="selectLogisticsList" parameterType="Logistics" resultMap="LogisticsResult">
+        <include refid="selectLogisticsVo"/>
+        <where> 1 = 1
+            <if test="orderNumber != null  and orderNumber != ''"> and order_number = #{orderNumber}</if>
+            <if test="phoneNumber != null  and phoneNumber != ''"> and phone_number = #{phoneNumber}</if>
+            <if test="onsignee != null  and onsignee != ''"> and onsignee like concat('%', #{onsignee}, '%')</if>
+            <if test="shippingAddress != null  and shippingAddress != ''"> and shipping_address like concat('%', #{shippingAddress}, '%')</if>
+
+            <if test="params.beginShippingTime != null and params.beginShippingTime != ''"><!-- 开始时间检索 -->
+                and DATE_FORMAT(shipping_time,'%Y-%m-%d') <![CDATA[>=]]>date_format(#{params.beginShippingTime},'%Y-%m-%d')
+            </if>
+            <if test="params.endShippingTime != null and params.endShippingTime != ''"><!-- 结束时间检索 -->
+                and DATE_FORMAT(shipping_time,'%Y-%m-%d') <![CDATA[<=]]>date_format(#{params.endShippingTime},'%Y-%m-%d')
+            </if>
+
+            <if test="params.beginReceiveTime != null and params.beginReceiveTime != ''"><!-- 开始时间检索 -->
+                and DATE_FORMAT(receive_time,'%Y-%m-%d') <![CDATA[>=]]>date_format(#{params.beginReceiveTime},'%Y-%m-%d')
+            </if>
+            <if test="params.endReceiveTime != null and params.endReceiveTime != ''"><!-- 结束时间检索 -->
+                and DATE_FORMAT(receive_time,'%Y-%m-%d') <![CDATA[<=]]>date_format(#{params.endReceiveTime},'%Y-%m-%d')
+            </if>
+
+            <if test="orderGoods != null  and orderGoods != ''"> and order_goods like concat('%', #{orderGoods}, '%')</if>
+        </where>
+        <!-- 数据范围过滤 -->
+        ${params.dataScope}
+    </select>
+
+    <select id="selectLogisticsById" parameterType="Long" resultMap="LogisticsLogisticsLocationResult">
+        select a.id, a.order_number, a.phone_number, a.onsignee, a.shipping_address, a.shipping_time, a.receive_time, a.order_goods, a.order_amount, a.create_time, a.update_time, a.remark,
+ b.id as sub_id, b.logistics_id as sub_logistics_id, b.order_status as sub_order_status, b.current_location as sub_current_location, b.currents_time as sub_currents_time, b.create_time as sub_create_time, b.update_time as sub_update_time, b.remark as sub_remark
+        from logistics a
+        left join logistics_location b on b.logistics_id = a.id
+        where a.id = #{id}
+        order by b.create_time desc
+    </select>
+
+    <insert id="insertLogistics" parameterType="Logistics" useGeneratedKeys="true" keyProperty="id">
+        insert into logistics
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="orderNumber != null and orderNumber != ''">order_number,</if>
+            <if test="phoneNumber != null and phoneNumber != ''">phone_number,</if>
+            <if test="onsignee != null and onsignee != ''">onsignee,</if>
+            <if test="shippingAddress != null and shippingAddress != ''">shipping_address,</if>
+            <if test="shippingTime != null">shipping_time,</if>
+            <if test="receiveTime != null">receive_time,</if>
+            <if test="orderGoods != null">order_goods,</if>
+            <if test="orderAmount != null">order_amount,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+            <if test="userId != null and userId != ''">user_id,</if>
+            <if test="deptId != null and deptId != ''">dept_id,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="orderNumber != null and orderNumber != ''">#{orderNumber},</if>
+            <if test="phoneNumber != null and phoneNumber != ''">#{phoneNumber},</if>
+            <if test="onsignee != null and onsignee != ''">#{onsignee},</if>
+            <if test="shippingAddress != null and shippingAddress != ''">#{shippingAddress},</if>
+            <if test="shippingTime != null">#{shippingTime},</if>
+            <if test="receiveTime != null">#{receiveTime},</if>
+            <if test="orderGoods != null">#{orderGoods},</if>
+            <if test="orderAmount != null">#{orderAmount},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="userId != null and userId != ''">#{userId},</if>
+            <if test="deptId != null and deptId != ''">#{deptId},</if>
+         </trim>
+    </insert>
+
+    <update id="updateLogistics" parameterType="Logistics">
+        update logistics
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="orderNumber != null and orderNumber != ''">order_number = #{orderNumber},</if>
+            <if test="phoneNumber != null and phoneNumber != ''">phone_number = #{phoneNumber},</if>
+            <if test="onsignee != null and onsignee != ''">onsignee = #{onsignee},</if>
+            <if test="shippingAddress != null and shippingAddress != ''">shipping_address = #{shippingAddress},</if>
+            <if test="shippingTime != null">shipping_time = #{shippingTime},</if>
+            <if test="receiveTime != null">receive_time = #{receiveTime},</if>
+            <if test="orderGoods != null">order_goods = #{orderGoods},</if>
+            <if test="orderAmount != null">order_amount = #{orderAmount},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+<!--            <if test="userId != null and userId != ''">user_id = #{userId},</if>-->
+<!--            <if test="deptId != null and deptId != ''">dept_id = #{deptId},</if>-->
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteLogisticsById" parameterType="Long">
+        delete from logistics where id = #{id}
+    </delete>
+
+    <select id="selectOrderNumbers" parameterType="String" resultMap="LogisticsResult">
+        SELECT DISTINCT
+            l.id, l.order_number, l.shipping_address, l.order_goods, x.currents_time AS other, x.order_status AS other2, x.remark AS other3
+        FROM logistics l
+        LEFT JOIN (
+            SELECT ll.* FROM logistics_location ll
+        JOIN (
+                SELECT logistics_id, MAX(currents_time) AS max_currents_time FROM logistics_location
+                GROUP BY logistics_id
+            ) mll ON ll.logistics_id = mll.logistics_id AND ll.currents_time = mll.max_currents_time
+        ) x ON l.id = x.logistics_id
+        WHERE l.order_number IN
+        <foreach item="orderNumber" collection="array" open="(" separator="," close=")">
+            #{orderNumber}
+        </foreach>
+    </select>
+
+    <select id="selectLogisticsNumber" resultType="com.lis.logis.domain.Logistics">
+        <include refid="selectLogisticsVo"/>
+        where order_number = #{number}
+    </select>
+
+    <delete id="deleteLogisticsByIds" parameterType="String">
+        delete from logistics where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteLogisticsLocationByLogisticsIds" parameterType="String">
+        delete from logistics_location where logistics_id in
+        <foreach item="logisticsId" collection="array" open="(" separator="," close=")">
+            #{logisticsId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteLogisticsLocationByLogisticsId" parameterType="Long">
+        delete from logistics_location where logistics_id = #{logisticsId}
+    </delete>
+
+    <insert id="batchLogisticsLocation">
+        insert into logistics_location (
+        id,
+        logistics_id,
+        current_location,
+        currents_time,
+        order_status,
+        create_time,
+        update_time,
+        remark
+        ) values
+        <foreach item="item" index="index" collection="list" separator=",">
+            (
+            #{item.id},
+            #{item.logisticsId},
+            #{item.currentLocation},
+            #{item.currentsTime},
+            #{item.orderStatus},
+            #{item.createTime},
+            #{item.updateTime},
+            #{item.remark}
+            )
+        </foreach>
+    </insert>
+
+</mapper>

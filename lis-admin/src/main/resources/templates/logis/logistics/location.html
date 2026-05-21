@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<th:block th:include="include :: header('订单位置')" />
+	<style>
+		.badge-danger{
+			font-size: 14px; /* 将字体大小从20px调小到14px */
+			padding: 3px 8px; /* 添加内边距控制 */
+			line-height: 1.2; /* 控制行高 */
+		}
+		/* 修改语言切换按钮样式，使其与工具栏按钮一致 */
+		.lang-btn {
+			display: inline-block;
+			margin-right: 5px;
+			font-weight: 400;
+			text-align: center;
+			vertical-align: middle;
+			cursor: pointer;
+			background-image: none;
+			border: 1px solid transparent;
+			white-space: nowrap;
+			padding: 5px 10px;
+			font-size: 12px;
+			line-height: 1.5;
+			border-radius: 3px;
+		}
+		.lang-btn.active {
+			background-color: #1ab394;
+			border-color: #1ab394;
+			color: white;
+		}
+		.lang-btn:not(.active) {
+			background-color: #fff;
+			border-color: #ddd;
+			color: #676a6c;
+		}
+		/* 添加右上角按钮容器样式 */
+		.top-right-btns {
+			position: absolute;
+			top: 10px;
+			right: 10px;
+			z-index: 100;
+		}
+		/* 添加表格单元格自动换行样式 */
+		.bootstrap-table .table td {
+			word-break: break-all !important;
+			word-wrap: break-word !important;
+			white-space: normal !important;
+		}
+		/* 特别为备注列设置样式 */
+		.remark-column {
+			max-width: 180px;
+			word-break: break-all !important;
+			word-wrap: break-word !important;
+			white-space: normal !important;
+			overflow-wrap: break-word !important;
+		}
+	</style>
+</head>
+<body class="gray-bg">
+     <div class="container-div">
+		<div class="row">
+
+			<div class="col-sm-12 search-collapse">
+				<form id="formId" autocomplete="off">
+					<div class="select-list">
+						<ul>
+							<li>
+								<textarea name="orderNumber" id="orderNumber" cols="50" rows="1" class="form-control" placeholder="如果需要同时查询多个单号,每个单号请用[,]分割"></textarea>
+							</li>
+							<li>
+								<a class="btn btn-primary btn-rounded btn-sm" onclick="sel()"><i class="fa fa-search"></i>&nbsp;搜索</a>
+								<a class="btn btn-warning btn-rounded btn-sm" onclick="reset()"><i class="fa fa-refresh"></i>&nbsp;清空</a>
+							</li>
+						</ul>
+					</div>
+				</form>
+			</div>
+
+			<div class="col-sm-12 select-table table-striped">
+				<!-- 移除这里的语言切换按钮 -->
+				<table id="bootstrap-table"></table>
+			</div>
+		</div>
+	</div>
+    <div th:include="include :: footer"></div>
+    <script th:inline="javascript">
+		// 语言数据
+		var langData = {
+			cn: {
+				search: "搜索",
+				reset: "清空",
+				orderNumber: "订单编号",
+				destination: "目的国家",
+				latestTrack: "最新轨迹",
+				logisticsStatus: "物流状态",
+				currentLocation: "当前位置",
+				remark: "备注信息",
+				time: "时间",
+				placeholder: "如果需要同时查询多个单号,每个单号请用[,]分割",
+				arrived: "已抵达",
+				// 添加分页信息的翻译
+				showingEntries: "显示第",
+				to: "到第",
+				entries: "条记录",
+				total: "总共",
+				perPage: "每页显示",
+				// 添加系统提示框的翻译
+				systemPrompt: "系统提示",
+				enterOrderNumber: "请输入订单号！",
+				confirm: "确认",
+				// 添加无记录提示的翻译
+				noRecords: "没有找到匹配的记录",
+				// 添加加载提示的翻译
+				loading: "正在努力地加载数据中，请稍候"
+			},
+			en: {
+				search: "Search",
+				reset: "Reset",
+				orderNumber: "Order Number",
+				destination: "Destination",
+				latestTrack: "Latest Track",
+				logisticsStatus: "Logistics Status",
+				currentLocation: "Current Location",
+				remark: "Remarks",
+				time: "Time",
+				placeholder: "To query multiple order numbers, separate each with [,]",
+				arrived: "Arrived",
+				// 添加分页信息的翻译
+				showingEntries: "Showing",
+				to: "to",
+				entries: "entries",
+				total: "total",
+				perPage: "Show",
+				// 添加系统提示框的翻译
+				systemPrompt: "System Prompt",
+				enterOrderNumber: "Please enter order number!",
+				confirm: "OK",
+				// 添加无记录提示的翻译
+				noRecords: "No matching records found",
+				// 添加加载提示的翻译
+				loading: "Loading data, please wait"
+			}
+		};
+		
+		// 当前语言
+		var currentLang = 'cn';
+		
+		// 切换语言
+		function switchLanguage(lang) {
+			currentLang = lang;
+			
+			// 更新按钮状态
+			if (lang === 'cn') {
+				$("#cnBtn").addClass("active");
+				$("#enBtn").removeClass("active");
+			} else {
+				$("#cnBtn").removeClass("active");
+				$("#enBtn").addClass("active");
+			}
+			
+			// 更新搜索区域文本 - 修复按钮文本更新
+			var searchBtn = $(".btn-primary");
+			var resetBtn = $(".btn-warning");
+			
+			// 保存图标
+			var searchIcon = searchBtn.find("i").prop("outerHTML");
+			var resetIcon = resetBtn.find("i").prop("outerHTML");
+			
+			// 更新按钮文本，保留图标
+			searchBtn.html(searchIcon + "&nbsp;" + langData[lang].search);
+			resetBtn.html(resetIcon + "&nbsp;" + langData[lang].reset);
+			
+			// 更新输入框提示文本
+			$("#orderNumber").attr("placeholder", langData[lang].placeholder);
+			
+			// 更新系统提示框文本
+			$(".modal-title").text(langData[lang].systemPrompt);
+			$(".modal-body").find("i.fa-info-circle").parent().next().text(langData[lang].enterOrderNumber);
+			$(".modal-footer .btn").text(langData[lang].confirm);
+			
+			// 销毁并重新初始化表格
+			$("#bootstrap-table").bootstrapTable('destroy');
+			initTable();
+			
+			// 保存语言选择到本地存储
+			localStorage.setItem('preferredLanguage', lang);
+			
+			// 添加更新分页信息的翻译
+			setTimeout(function() {
+				updatePaginationText();
+				// 确保语言切换按钮在表格重新加载后仍然存在
+				addLanguageButtons();
+			}, 500);
+		}
+		
+		// 更新分页信息文本
+		function updatePaginationText() {
+			var paginationInfo = $(".pagination-info");
+			if (paginationInfo.length > 0) {
+				var text = paginationInfo.text();
+				var numbers = text.match(/\d+/g);
+				
+				if (numbers && numbers.length >= 3) {
+					var from = numbers[0];
+					var to = numbers[1];
+					var total = numbers[2];
+					
+					if (currentLang === 'cn') {
+						paginationInfo.text("显示第 " + from + " 到第 " + to + " 条记录，总共 " + total + " 条记录");
+					} else {
+						paginationInfo.text("Showing " + from + " to " + to + " of " + total + " entries");
+					}
+				}
+			}
+			
+			// 更新"每页显示"文本和按钮
+			var pageList = $(".page-list");
+			if (pageList.length > 0) {
+				// 更新下拉按钮文本
+				var dropdownButton = pageList.find(".dropdown-toggle");
+				if (dropdownButton.length > 0) {
+					var currentPageSize = dropdownButton.text().trim().match(/\d+/);
+					currentPageSize = currentPageSize ? currentPageSize[0] : "10";
+					
+					if (currentLang === 'cn') {
+						dropdownButton.html(currentPageSize + " <span class=\"caret\"></span>");
+					} else {
+						dropdownButton.html(currentPageSize + " <span class=\"caret\"></span>");
+					}
+				}
+				
+				// 修复下拉菜单项的显示
+				$(".page-list .dropdown-menu a").each(function() {
+					var $this = $(this);
+					var pageSize = $this.text().trim().match(/\d+/);
+					if (pageSize) {
+						$this.text(pageSize[0]);
+					}
+				});
+				
+				// 更新"条记录"文本
+				var entriesText = pageList.contents().filter(function() {
+					return this.nodeType === 3; // 文本节点
+				});
+				
+				if (entriesText.length > 0) {
+					if (currentLang === 'cn') {
+						entriesText[0].nodeValue = " 条记录";
+					} else {
+						entriesText[0].nodeValue = " entries per page";
+					}
+				} else {
+					// 如果没有找到文本节点，可能需要添加一个
+					if (currentLang === 'cn') {
+						pageList.append(" 条记录");
+					} else {
+						pageList.append(" entries per page");
+					}
+				}
+			}
+			
+			// 修复"Show"按钮文本
+			$(".page-list button").each(function() {
+				var $this = $(this);
+				if ($this.text().trim().toLowerCase() === "show") {
+					if (currentLang === 'cn') {
+						$this.text("显示");
+					} else {
+						$this.text("Show");
+					}
+				}
+			});
+			
+			// 更新分页区域的其他文本
+			setTimeout(function() {
+				// 处理"Show"按钮
+				$(".page-list .btn-default").each(function() {
+					var $this = $(this);
+					if (currentLang === 'cn') {
+						if ($this.text().trim().toLowerCase() === "show") {
+							$this.text("显示");
+						}
+					} else {
+						if ($this.text().trim() === "显示") {
+							$this.text("Show");
+						}
+					}
+				});
+				
+				// 处理下拉菜单中的数字项
+				$(".page-list .dropdown-menu li a").each(function() {
+					var $this = $(this);
+					var text = $this.text().trim();
+					// 只保留数字部分
+					var number = text.match(/\d+/);
+					if (number) {
+						$this.text(number[0]);
+					}
+				});
+				
+				// 处理"entries"或"条记录"文本
+				$("*").contents().filter(function() {
+					return this.nodeType === 3 && (this.nodeValue.includes("条记录") || this.nodeValue.includes("entries"));
+				}).each(function() {
+					if (currentLang === 'cn' && this.nodeValue.includes("entries")) {
+						this.nodeValue = this.nodeValue.replace(/entries.*/, "条记录");
+					} else if (currentLang === 'en' && this.nodeValue.includes("条记录")) {
+						this.nodeValue = this.nodeValue.replace(/条记录.*/, "entries per page");
+					}
+				});
+			}, 600);
+		}
+
+		//清空
+		function reset(){
+			$("#orderNumber").val("");
+		}
+
+		//点击搜索
+		function sel(){
+			// 检查是否输入了订单号
+			if (!$("#orderNumber").val().trim()) {
+				// 使用当前语言显示提示框
+				// 直接使用前端的方式显示提示框，而不是依赖后端异常
+				$.modal.alertWarning(langData[currentLang].enterOrderNumber);
+				
+				// 在弹出框显示后立即应用翻译
+				setTimeout(function() {
+					updateModalTexts();
+				}, 100);
+				return; // 阻止表单提交
+			}
+			
+			// 如果有输入，则继续搜索
+			$.table.search();
+			setTimeout(function() {
+				$("#bootstrap-table tbody tr:first-child td:first-child a").click(function(e) {
+					e.preventDefault();
+				}).trigger("click");
+			}, 500); // 0.5秒延时
+		}
+		
+		// 修改updateModalTexts函数，使其更精确地定位和修改模态框内容
+		function updateModalTexts() {
+			// 查找所有模态框
+			$(".modal").each(function() {
+				var $modal = $(this);
+				
+				// 直接使用jQuery选择器精确定位标题元素
+				$modal.find(".modal-title").text(langData[currentLang].systemPrompt);
+				
+				// 更新内容 - 需要更精确地定位消息文本
+				// 查找包含i标签的消息文本
+				var $messageIcon = $modal.find(".modal-body i.fa-info-circle");
+				if ($messageIcon.length > 0) {
+					// 如果找到图标，尝试定位相邻的文本元素
+					var $messageText = $messageIcon.parent().next();
+					if ($messageText.length > 0) {
+						$messageText.text(langData[currentLang].enterOrderNumber);
+					} else {
+						// 如果没有相邻元素，可能文本直接在父元素中
+						$messageIcon.parent().contents().filter(function() {
+							return this.nodeType === 3; // 文本节点
+						}).replaceWith(langData[currentLang].enterOrderNumber);
+					}
+				} else {
+					// 如果没有找到图标，尝试查找任何包含相关文本的元素
+					$modal.find(".modal-body").find("*").contents().filter(function() {
+						return this.nodeType === 3 && 
+							(this.nodeValue.includes("请输入订单号") || 
+							 this.nodeValue.includes("Please enter order number"));
+					}).replaceWith(langData[currentLang].enterOrderNumber);
+				}
+				
+				// 更新按钮文本 - 使用更精确的选择器
+				$modal.find(".modal-footer .btn").text(langData[currentLang].confirm);
+			});
+		}
+		
+		// 重写$.modal.alertWarning方法，使其直接使用当前语言
+		var originalAlertWarning = $.modal.alertWarning;
+		$.modal.alertWarning = function(message) {
+			// 如果消息是"请输入订单号"相关，则使用当前语言的翻译
+			if (message.includes("请输入订单号") || message.includes("Please enter order number")) {
+				message = langData[currentLang].enterOrderNumber;
+			}
+			
+			// 保存原始的modal.options
+			var originalOptions = $.modal.options;
+			
+			// 临时修改modal.options，设置标题和按钮文本
+			$.modal.options = $.extend({}, $.modal.options, {
+				title: langData[currentLang].systemPrompt,
+				btn: [langData[currentLang].confirm]
+			});
+			
+			// 调用原始方法
+			originalAlertWarning.call(this, message);
+			
+			// 恢复原始的modal.options
+			$.modal.options = originalOptions;
+			
+			// 在弹出框显示后立即应用翻译
+			setTimeout(updateModalTexts, 50);
+			setTimeout(updateModalTexts, 100);
+			setTimeout(updateModalTexts, 200);
+		};
+		
+		// 切换语言
+		function switchLanguage(lang) {
+			currentLang = lang;
+			
+			// 更新按钮状态
+			if (lang === 'cn') {
+				$("#cnBtn").addClass("active");
+				$("#enBtn").removeClass("active");
+			} else {
+				$("#cnBtn").removeClass("active");
+				$("#enBtn").addClass("active");
+			}
+			
+			// 更新搜索区域文本 - 修复按钮文本更新
+			var searchBtn = $(".btn-primary");
+			var resetBtn = $(".btn-warning");
+			
+			// 保存图标
+			var searchIcon = searchBtn.find("i").prop("outerHTML");
+			var resetIcon = resetBtn.find("i").prop("outerHTML");
+			
+			// 更新按钮文本，保留图标
+			searchBtn.html(searchIcon + "&nbsp;" + langData[lang].search);
+			resetBtn.html(resetIcon + "&nbsp;" + langData[lang].reset);
+			
+			// 更新输入框提示文本
+			$("#orderNumber").attr("placeholder", langData[lang].placeholder);
+			
+			// 更新当前显示的系统提示框文本
+			updateModalTexts();
+			
+			// 更新加载提示文本（如果当前正在显示）
+			$(".fixed-table-loading").text(langData[lang].loading);
+			
+			// 销毁并重新初始化表格
+			$("#bootstrap-table").bootstrapTable('destroy');
+			initTable();
+			
+			// 保存语言选择到本地存储
+			localStorage.setItem('preferredLanguage', lang);
+			
+			// 添加更新分页信息的翻译
+			setTimeout(function() {
+				updatePaginationText();
+				// 确保语言切换按钮在表格重新加载后仍然存在
+				addLanguageButtons();
+			}, 500);
+		}
+
+
+		//时间比较
+		function getDaysBetween(dateString2) {
+
+			var dateString1 = [[${#dates.format(#dates.createNow(), 'yyyy-MM-dd HH:mm:ss')}]];
+			//传入时间
+			var date1 = new Date(dateString2);
+			//当天
+			var date2 = new Date(dateString1);
+
+
+			// 判断时间2是否小于时间1
+			if (date2 < date1) {
+				return "0";
+			}
+
+			// 计算时间差并返回天数
+			var timeDiff = Math.abs(date2.getTime() - date1.getTime());
+			var diffDays = Math.ceil(timeDiff / (1000 * 3600 * 24));
+			return diffDays;
+		}
+
+
+		var prefix = ctx + "logis/location";
+		var orderStatusDatas = [[${@dict.getType('order_status')}]];
+
+		// 初始化表格函数
+		function initTable() {
+			var options = {
+				url: prefix + "/list",
+				showSearch: true,
+				search: false,  // 禁用表格内置的搜索框
+				searchOnEnterKey: false,
+				showSearchButton: false,
+				showSearchClearButton: false,
+				searchVisible: false,
+				showRefresh: false,
+				showToggle: true,
+				showColumns: false,
+				detailView: true,
+				pageList: [10, 25, 50, 100, 200],
+				firstLoad: false,
+				// 设置默认视图为卡片视图
+				card: true,
+				view: 'card',
+				// 设置无数据文本
+				formatNoMatches: function() {
+					return langData[currentLang].noRecords;
+				},
+				// 设置加载提示文本
+				formatLoadingMessage: function() {
+					return langData[currentLang].loading;
+				},
+				onExpandRow : function(index, row, $detail) {
+					initChildTable(index, row, $detail);
+				},
+				// 添加表格加载完成后的回调
+				onLoadSuccess: function() {
+					updatePaginationText();
+					// 确保表格内容自动换行
+					$(".bootstrap-table .table").addClass("table-wrap");
+					// 确保搜索区域显示
+					$(".search-collapse").removeClass("collapse").addClass("show");
+					// 移除表格内置的搜索框
+					$(".fixed-table-toolbar .search input.form-control").parent().remove();
+					
+					// 强制切换到卡片视图
+					setTimeout(function() {
+						if ($(".bootstrap-table .toggle-view .fa-th").length > 0) {
+							$(".bootstrap-table .toggle-view").click();
+						}
+					}, 100);
+					
+					// 翻译"没有找到匹配的记录"文本
+					$(".no-records-found td").text(langData[currentLang].noRecords);
+				},
+				// 设置表格样式
+				classes: "table table-bordered table-hover",
+				// 设置表格布局为固定布局
+				theadClasses: "thead-light",
+				// 添加这个配置以支持自动换行
+				cellStyle: function(value, row, index) {
+					return {
+						css: {
+							'white-space': 'normal',
+							'word-break': 'break-word'
+						}
+					};
+				},
+				columns: [
+				{
+					field : 'orderNumber',
+					title : langData[currentLang].orderNumber
+				},
+				{
+					field: 'shippingAddress',
+					title : langData[currentLang].destination
+				},
+				{
+					field: 'other',
+					title : langData[currentLang].latestTrack,
+					formatter: function(value, row, index) {
+						return row.other + " " + row.other3;
+					}
+				},
+				// 在主表格中的物流状态formatter函数
+				{
+					field: 'other2',
+					title : langData[currentLang].logisticsStatus,
+					formatter: function(value, row, index) {
+						// 获取状态文本
+						var s = $.table.selectDictLabel(orderStatusDatas, value);
+						
+						// 如果是英文模式，尝试获取备注信息
+						if(currentLang === 'en') {
+							var remarkInfo = $.table.selectDictRemark(orderStatusDatas, value);
+							if(remarkInfo && remarkInfo.trim() !== '') {
+								s = remarkInfo; // 使用备注替换状态文本
+							}
+						}
+						
+						// 添加红色背景样式，调整大小
+						var statusHtml = '<span class="badge badge-danger" style="background-color: #ed5565; color: white; padding: 3px 8px; border-radius: 10px; font-size: 14px; line-height: 1.2;">' + s + '</span>';
+						
+						if(row.other2 === "6"){
+							var daysBetween = getDaysBetween(row.other);
+							var arrivedText = currentLang === 'cn' ? "已抵达" : "Arrived";
+							return statusHtml + " <span class=\"badge badge-danger\" style=\"font-size: 14px; padding: 3px 8px; line-height: 1.2;\">{" + arrivedText + daysBetween + (currentLang === 'cn' ? "天" : " days") + "}</span>";
+						}
+						return statusHtml;
+					}
+				}
+				]
+			};
+			$.table.init(options);
+		}
+
+        $(function() {
+			// 检查本地存储中的语言设置
+			var savedLang = localStorage.getItem('preferredLanguage');
+			if (savedLang) {
+				currentLang = savedLang;
+				if (savedLang === 'en') {
+					$("#cnBtn").removeClass("active");
+					$("#enBtn").addClass("active");
+				}
+			}
+			
+			// 初始化表格
+			initTable();
+			
+			// 页面加载完成后添加语言切换按钮到右上角
+			setTimeout(function() {
+				addLanguageButtons();
+				
+				// 强制显示搜索区域
+				$(".search-collapse").removeClass("collapse").addClass("show");
+				
+				// 移除表格内置的搜索框
+				$(".fixed-table-toolbar .search input.form-control").parent().remove();
+				
+				// 强制切换到卡片视图
+				setTimeout(function() {
+					if ($(".bootstrap-table .toggle-view .fa-th").length > 0) {
+						$(".bootstrap-table .toggle-view").click();
+					}
+				}, 300);
+				
+				// 添加模态框观察器
+				addModalObserver();
+				
+				// 检查并翻译当前页面上已经存在的模态框
+				if ($(".modal").length > 0) {
+					updateModalTexts();
+				}
+			}, 500);
+        });
+        
+        // 添加模态框观察器
+        function addModalObserver() {
+            // 创建一个观察器实例
+            var observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.addedNodes && mutation.addedNodes.length > 0) {
+                        for (var i = 0; i < mutation.addedNodes.length; i++) {
+                            var node = mutation.addedNodes[i];
+                            if (node.classList && node.classList.contains('modal')) {
+                                // 发现模态框，应用翻译
+                                setTimeout(updateModalTexts, 10);
+                                return;
+                            }
+                        }
+                    }
+                });
+            });
+            
+            // 配置观察选项
+            var config = { childList: true, subtree: true };
+            
+            // 开始观察document.body的变化
+            observer.observe(document.body, config);
+        }
+		
+		// 添加语言切换按钮函数
+		function addLanguageButtons() {
+			if ($("#langBtns").length === 0) {
+				var $toolbar = $(".bootstrap-table .fixed-table-toolbar .columns.columns-right.btn-group.pull-right");
+				if ($toolbar.length > 0) {
+					// 创建语言切换按钮
+					var $langBtns = $('<div id="langBtns" class="btn-group"></div>');
+					$langBtns.append('<button type="button" class="lang-btn ' + (currentLang === 'cn' ? 'active' : '') + '" onclick="switchLanguage(\'cn\')" id="cnBtn">CN</button>');
+					$langBtns.append('<button type="button" class="lang-btn ' + (currentLang === 'en' ? 'active' : '') + '" onclick="switchLanguage(\'en\')" id="enBtn">EN</button>');
+					
+					// 插入到工具栏的最前面
+					$toolbar.prepend($langBtns);
+				} else {
+					// 如果工具栏还没有加载，稍后再试
+					setTimeout(function() {
+						addLanguageButtons();
+					}, 300);
+				}
+			}
+		}
+
+		// 在子表格中也需要做相同的修改
+		// 在脚本开始部分添加这个辅助函数，用于获取字典项的备注信息
+		$.table.selectDictRemark = function(datas, value) {
+		    var actions = [];
+		    $.each(datas, function(index, dict) {
+		        if (dict.dictValue == ('' + value)) {
+		            actions.push(dict.remark || dict.dictLabel);
+		            return false;
+		        }
+		    });
+		    return actions.length > 0 ? actions.join('') : '';
+		};
+
+    	initChildTable = function(index, row, $detail) {
+    	    var childTable = $detail.html('<table style="table-layout:fixed"></table>').find('table');
+    	    $(childTable).bootstrapTable({
+    	        url: prefix + "/listLocation",
+    	        method: 'post',
+    	        sidePagination: "server",
+    	        contentType: "application/x-www-form-urlencoded",
+    	        queryParams : {
+					logisticsId: row.id
+				},
+				sortName: "createTime",
+				sortOrder: "desc",
+				// 设置加载提示文本
+				formatLoadingMessage: function() {
+					return langData[currentLang].loading;
+				},
+				// 设置无数据文本
+				formatNoMatches: function() {
+					return langData[currentLang].noRecords;
+				},
+    	        columns: [
+				{
+					field : 'currentLocation',
+					title : langData[currentLang].currentLocation
+				},
+				{
+					field : 'remark',
+					title : langData[currentLang].remark,
+					class: 'remark-column',
+					formatter: function(value, row, index) {
+						// 使用div包装内容，确保应用样式
+						return '<div style="word-break: break-all; white-space: normal; max-width: 180px;">' + (value || '') + '</div>';
+					}
+				},
+				{
+					field: 'currentsTime',
+					title : langData[currentLang].time
+				},
+				{
+					field: 'orderStatus',
+					title : langData[currentLang].logisticsStatus,
+					formatter: function(value, row, index) {
+						// 获取状态文本
+						var s = $.table.selectDictLabel(orderStatusDatas, value);
+						
+						// 如果是英文模式，尝试获取备注信息（remark列）
+						if(currentLang === 'en') {
+							var remarkInfo = $.table.selectDictRemark(orderStatusDatas, value);
+							if(remarkInfo && remarkInfo.trim() !== '') {
+								s = remarkInfo; // 使用备注替换状态文本
+							}
+						}
+						
+						// 添加红色背景样式，与主表保持一致
+						return '<span class="badge badge-danger" style="background-color: #ed5565; color: white; padding: 3px 8px; border-radius: 10px; font-size: 14px; line-height: 1.2;">' + s + '</span>';
+					}
+				}
+				]
+    	    });
+		};
+    </script>
+</body>
+</html>
