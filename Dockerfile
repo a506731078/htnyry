@@ -1,5 +1,10 @@
-# 第一阶段：使用 Maven 构建应用
-FROM maven:3.8.8-openjdk-8-slim AS builder
+# 第一阶段：使用 JDK 8 + Maven 构建应用
+FROM eclipse-temurin:8-jdk AS builder
+
+# 安装 Maven
+RUN apt-get update && \
+    apt-get install -y maven && \
+    rm -rf /var/lib/apt/lists/*
 
 # 设置工作目录
 WORKDIR /app
@@ -12,9 +17,6 @@ COPY lis-framework/pom.xml lis-framework/
 COPY lis-quartz/pom.xml lis-quartz/
 COPY lis-generator/pom.xml lis-generator/
 COPY lis-system/pom.xml lis-system/
-
-# 复制 Maven 设置（如果有的话）
-# COPY maven/settings.xml /root/.m2/settings.xml
 
 # 下载依赖（这一步会被缓存，除非 pom.xml 变更）
 RUN mvn dependency:go-offline -B
