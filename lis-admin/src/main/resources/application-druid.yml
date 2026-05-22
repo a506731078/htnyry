@@ -10,7 +10,7 @@ spring:
                 # url: jdbc:mysql://localhost:3306/yjy-lis?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=true&serverTimezone=GMT%2B8
                 # username: root
                 # password:
-               url: jdbc:mysql://${CONFIG_DB_HOST:localhost}:${CONFIG_DB_PORT:3306}/${CONFIG_DB_NAME:htny}?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2B8
+               url: jdbc:mysql://${CONFIG_DB_HOST:localhost}:${CONFIG_DB_PORT:3306}/${CONFIG_DB_NAME:htny}?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
                username: ${CONFIG_DB_USER:htny}
                password: ${CONFIG_DB_PASSWORD:htny123}
             slave:
