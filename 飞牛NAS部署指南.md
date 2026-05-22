@@ -390,66 +390,142 @@ docker logs lis-mysql
 
 ---
 
-## 附录：完整的docker-compose.yml
+## 附录：`docker-compose.yml` 配置示例
+
+为了满足不同的部署需求，这里提供了两种 `docker-compose.yml` 配置示例：
+
+1.  **包含 MySQL 数据库服务**：适用于你需要 Docker Compose 帮你启动一个新的 MySQL 实例的情况。
+2.  **不包含 MySQL 数据库服务**：适用于你已有一个独立的外部 MySQL 数据库，只需启动 LIS 应用容器连接它的情况。
+
+---
+
+### 示例1: `docker-compose-with-mysql.yml` (包含数据库)
+
+这个配置会启动一个 LIS 应用容器和一个 MySQL 数据库容器，并自动初始化数据库。
+
+**使用方法：**
+
+1.  将以下内容保存为 `docker-compose-with-mysql.yml`。
+2.  确保 `/docker/lis/sql/htny_complete.sql` 数据库脚本存在于你的 NAS 上。
+3.  在文件所在目录执行：`docker-compose -f docker-compose-with-mysql.yml up -d`
 
 ```yaml
 version: '3.8'
 
 services:
-  # MySQL 数据库
+  # MySQL 数据库服务
   mysql:
     image: mysql:8.0
     container_name: lis-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root123
-      MYSQL_DATABASE: hhhh
-      MYSQL_USER: hhhh
-      MYSQL_PASSWORD: hhhh123
+      MYSQL_ROOT_PASSWORD: root123 # 请修改为你的MySQL root密码
+      MYSQL_DATABASE: hhhh        # 请修改为你的数据库名
+      MYSQL_USER: hhhh            # 请修改为你的数据库用户
+      MYSQL_PASSWORD: hhhh123     # 请修改为你的数据库密码
       TZ: Asia/Shanghai
     volumes:
-      - /docker/lis/data/mysql:/var/lib/mysql
-      - /docker/lis/sql:/docker-entrypoint-initdb.d
+      - /docker/lis/data/mysql:/var/lib/mysql # MySQL数据持久化路径
+      - /docker/lis/sql:/docker-entrypoint-initdb.d # 数据库初始化脚本路径
     ports:
-      - "3306:3306"
+      - "3306:3306" # 将主机3306端口映射到容器3306，可选，如果不需要外部访问可移除
     networks:
       - lis-network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot123"] # 请更新密码
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # LIS 应用
+  # LIS 应用服务
   lis:
-    image: ghcr.io/a506731078/htnyry:latest
+    image: ghcr.io/a506731078/lis:latest # GitHub Container Registry上的公开镜像
     container_name: lis-app
     restart: unless-stopped
-    depends_on:
+    depends_on: # 依赖MySQL服务，确保MySQL启动并健康后LIS才启动
       mysql:
         condition: service_healthy
     environment:
-      CONFIG_DB_HOST: mysql
-      CONFIG_DB_PORT: 3306
-      CONFIG_DB_NAME: hhhh
-      CONFIG_DB_USER: hhhh
-      CONFIG_DB_PASSWORD: hhhh123
+      CONFIG_DB_HOST: mysql # 数据库主机名，Docker Compose网络中MySQL服务的名称
+      CONFIG_DB_PORT: 3306  # 数据库端口
+      CONFIG_DB_NAME: hhhh  # 数据库名
+      CONFIG_DB_USER: hhhh  # 数据库用户
+      CONFIG_DB_PASSWORD: hhhh123 # 数据库密码
       CONFIG_PORT: 8808
       CONFIG_ADDRESS: 0.0.0.0
       JAVA_OPTS: -Xmx1024M -Xms256M
       TZ: Asia/Shanghai
     volumes:
-      - /docker/lis/data/upload:/home/lis/uploadPath
-      - /docker/lis/data/logs:/home/lis/logs
+      - /docker/ry/data/upload:/home/lis/uploadPath # 上传文件持久化路径
+      - /docker/ry/data/logs:/home/lis/logs       # 应用日志持久化路径
+      - ./config.json:/app/config.json:ro   # 将同目录下的config.json挂载到容器内
     ports:
-      - "8808:8808"
+      - "8808:8808" # 将主机8808端口映射到容器8808
     networks:
       - lis-network
 
 networks:
   lis-network:
-    driver: bridge
+    driver: bridge # 定义一个内部网络
 ```
+
+**部署前的最后检查：**
+
+1.  **`MYSQL_ROOT_PASSWORD` 等变量**：请务必根据你的需求修改 `mysql` 服务下的数据库密码、用户名等环境变量。
+2.  **NAS 防火墙**：确保你的飞牛NAS的防火墙已经开放了 **3306 端口**（用于MySQL外部访问，如果需要）和 **8808 端口**（用于LIS应用访问）。
+3.  **`config.json` 文件**：请务必在 `docker-compose.yml` 文件同目录下创建一个名为 `config.json` 的文件，并包含必要的配置信息。
+
+---
+
+### 示例2: `docker-compose-without-mysql.yml` (不包含数据库)
+
+这个配置适用于你已有一个独立的外部 MySQL 数据库，只需启动 LIS 应用容器连接它的情况。
+
+**使用方法：**
+
+1.  将以下内容保存为 `docker-compose-without-mysql.yml`。
+2.  **务必修改 `CONFIG_DB_HOST` 和 `CONFIG_DB_PORT` 为你的外部数据库的实际地址和端口。**
+3.  在文件所在目录执行：`docker-compose -f docker-compose-without-mysql.yml up -d`
+
+```yaml
+version: '3.8'
+
+services:
+  # LIS 应用服务
+  lis:
+    image: ghcr.io/a506731078/lis:latest # GitHub Container Registry上的公开镜像
+    container_name: lis-app
+    restart: unless-stopped
+    environment:
+      CONFIG_DB_HOST: 192.168.10.203    # !!! 请务必替换为你的NAS的真实局域网IP地址，否则无法连接宝塔数据库 !!!
+      CONFIG_DB_PORT: 3306                    # 外部MySQL数据库端口 (默认3306)
+      CONFIG_DB_NAME: hhhh                    # 请修改为你的数据库名
+      CONFIG_DB_USER: hhhh                    # 请修改为你的数据库用户
+      CONFIG_DB_PASSWORD: 556677             # 请修改为你的数据库密码
+      CONFIG_PORT: 8808                     # LIS应用在容器内部监听的端口
+      CONFIG_ADDRESS: 0.0.0.0
+      JAVA_OPTS: -Xmx1024M -Xms256M
+      TZ: Asia/Shanghai
+    volumes:
+      - /docker/ry/data/upload:/home/lis/uploadPath # 上传文件持久化路径
+      - /docker/ry/data/logs:/home/lis/logs       # 应用日志持久化路径
+      - ./config.json:/app/config.json:ro   # 将同目录下的config.json挂载到容器内
+    ports:
+      - "5555:8808" # 将主机的5555端口映射到容器内部的8808端口
+                   # 你将通过 http://192.168.10.203:5555 访问LIS应用
+    networks:
+      - lis-app-network
+
+networks:
+  lis-app-network:
+    driver: bridge # 定义一个内部网络
+```
+
+**部署前的最后检查：**
+
+1.  **宝塔 MySQL 权限**：请确保你在宝塔面板中为数据库用户 `hhhh` 设置的访问主机权限是 `192.168.10.203`。
+2.  **NAS 防火墙**：确保你的飞牛NAS的防火墙已经开放了 **3306 端口**（用于LIS连接数据库）和 **5555 端口**（用于你访问LIS应用）。
+3.  **`config.json` 文件**：请务必在 `docker-compose.yml` 文件同目录下创建一个名为 `config.json` 的文件，并包含必要的配置信息。
 
 ---
 
